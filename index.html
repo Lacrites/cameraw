@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>App de Cámara con Filtros</title>
+  <title>App Cámara con Filtros y Selección de Cámara</title>
   <style>
     body {
       font-family: sans-serif;
@@ -10,7 +10,6 @@
       background: #222;
       color: #fff;
     }
-
     video, canvas {
       width: 100%;
       max-width: 400px;
@@ -18,25 +17,21 @@
       border-radius: 8px;
       margin: 10px 0;
     }
-
     .filtros button, .controles button {
       margin: 5px;
       padding: 10px 20px;
       font-size: 14px;
     }
-
     #canvas {
+      /* El canvas visible */
       display: block;
     }
   </style>
 </head>
 <body>
-  <h1>📸 Cámara con Filtros</h1>
+  <h1>📸 Cámara con Filtros y Control de Cámara</h1>
 
-  <!-- Video oculto, solo para obtener el stream -->
   <video id="video" autoplay playsinline style="display:none;"></video>
-
-  <!-- Canvas visible con el filtro aplicado -->
   <canvas id="canvas"></canvas>
 
   <div class="filtros">
@@ -63,25 +58,42 @@
 
     let filtroActual = 'none';
     let streamActual = null;
-    let camaraActual = 'user';
     let mediaRecorder = null;
     let partesVideo = [];
     let grabando = false;
     let dibujando = false;
 
-    async function iniciarCamara(facing = 'user') {
+    // Para manejar cámaras
+    let devices = [];
+    let currentDeviceIndex = 0;
+
+    async function listarCamaras() {
+      devices = await navigator.mediaDevices.enumerateDevices();
+      const videoInputs = devices.filter(d => d.kind === 'videoinput');
+      // Ordenar: cámaras traseras (back, trasera), luego frontales, para que alternar sea lógico
+      const traseras = videoInputs.filter(d => 
+        d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('trasera')
+      );
+      const frontales = videoInputs.filter(d =>
+        d.label.toLowerCase().includes('front') || d.label.toLowerCase().includes('frontal')
+      );
+      // Si no se detecta bien la etiqueta, mezclamos y dejamos el orden normal
+      return traseras.length > 0 ? traseras.concat(frontales) : videoInputs;
+    }
+
+    async function iniciarCamaraPorId(deviceId) {
       if (streamActual) {
         streamActual.getTracks().forEach(track => track.stop());
       }
 
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: facing }
+          video: { deviceId: { exact: deviceId } }
         });
         streamActual = stream;
         video.srcObject = stream;
 
-        video.oncanplay = () => {
+        video.onloadedmetadata = () => {
           canvas.width = video.videoWidth || 640;
           canvas.height = video.videoHeight || 480;
           if (!dibujando) {
@@ -148,9 +160,18 @@
       enlace.click();
     }
 
-    function alternarCamara() {
-      camaraActual = camaraActual === 'user' ? 'environment' : 'user';
-      iniciarCamara(camaraActual);
+    async function alternarCamara() {
+      setFiltro('none'); // reset filtro
+
+      if (devices.length === 0) {
+        devices = await listarCamaras();
+      }
+
+      currentDeviceIndex++;
+      if (currentDeviceIndex >= devices.length) currentDeviceIndex = 0;
+
+      const deviceId = devices[currentDeviceIndex].deviceId;
+      iniciarCamaraPorId(deviceId);
     }
 
     function toggleGrabacion() {
@@ -191,7 +212,18 @@
       grabLabel.textContent = "Iniciar grabación";
     }
 
-    iniciarCamara(camaraActual);
+    // Inicializamos
+    (async () => {
+      devices = await listarCamaras();
+
+      if (devices.length > 0) {
+        currentDeviceIndex = 0;
+        iniciarCamaraPorId(devices[currentDeviceIndex].deviceId);
+      } else {
+        alert("No se encontraron cámaras disponibles.");
+      }
+    })();
+
   </script>
 </body>
 </html>
