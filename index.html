@@ -2,34 +2,108 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>App Cámara con Filtros y Selección de Cámara</title>
+  <title>App Cámara Mobile Friendly</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <style>
+    /* Reset básico */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
     body {
-      font-family: sans-serif;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f3f5;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    h1 {
+      margin-bottom: 16px;
+      color: #4a90e2;
+      font-weight: 700;
+      font-size: 1.6rem;
       text-align: center;
-      background: #222;
-      color: #fff;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
     }
-    video, canvas {
-      width: 100%;
-      max-width: 400px;
-      border: 5px solid #444;
-      border-radius: 8px;
-      margin: 10px 0;
-    }
-    .filtros button, .controles button {
-      margin: 5px;
-      padding: 10px 20px;
-      font-size: 14px;
-    }
+
     #canvas {
-      /* El canvas visible */
       display: block;
+      max-width: 95vw;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 4 / 3; /* Mantener proporción común de cámara */
+      border-radius: 20px;
+      box-shadow: 0 8px 20px rgba(74, 144, 226, 0.3);
+      margin-bottom: 20px;
+      background: #000;
+      transition: filter 0.3s ease;
+      touch-action: none;
+    }
+
+    .filtros, .controles {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-bottom: 20px;
+      width: 100%;
+      max-width: 420px;
+    }
+
+    button {
+      background: #4a90e2;
+      border: none;
+      padding: 14px 26px;
+      border-radius: 30px;
+      color: white;
+      font-weight: 700;
+      font-size: 1.1rem;
+      cursor: pointer;
+      box-shadow: 0 5px 10px rgba(74, 144, 226, 0.3);
+      transition: background-color 0.3s ease, box-shadow 0.3s ease;
+      flex: 1 1 auto;
+      max-width: 180px;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button:hover {
+      background: #357ABD;
+      box-shadow: 0 8px 15px rgba(53, 122, 189, 0.5);
+    }
+
+    button:active {
+      background: #2b5e91;
+      box-shadow: 0 3px 7px rgba(43, 94, 145, 0.7);
+      transform: translateY(2px);
+    }
+
+    #grab-label {
+      user-select: none;
+    }
+
+    /* Ajustes extra para pantallas pequeñas */
+    @media (max-width: 380px) {
+      button {
+        max-width: 100%;
+        font-size: 1rem;
+        padding: 12px 18px;
+      }
     }
   </style>
 </head>
 <body>
-  <h1>📸 Cámara con Filtros y Control de Cámara</h1>
+  <h1>📸 Cámara con Filtros Mobile Friendly</h1>
 
   <video id="video" autoplay playsinline style="display:none;"></video>
   <canvas id="canvas"></canvas>
@@ -63,22 +137,13 @@
     let grabando = false;
     let dibujando = false;
 
-    // Para manejar cámaras
     let devices = [];
     let currentDeviceIndex = 0;
 
     async function listarCamaras() {
       devices = await navigator.mediaDevices.enumerateDevices();
       const videoInputs = devices.filter(d => d.kind === 'videoinput');
-      // Ordenar: cámaras traseras (back, trasera), luego frontales, para que alternar sea lógico
-      const traseras = videoInputs.filter(d => 
-        d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('trasera')
-      );
-      const frontales = videoInputs.filter(d =>
-        d.label.toLowerCase().includes('front') || d.label.toLowerCase().includes('frontal')
-      );
-      // Si no se detecta bien la etiqueta, mezclamos y dejamos el orden normal
-      return traseras.length > 0 ? traseras.concat(frontales) : videoInputs;
+      return videoInputs;
     }
 
     async function iniciarCamaraPorId(deviceId) {
@@ -161,7 +226,7 @@
     }
 
     async function alternarCamara() {
-      setFiltro('none'); // reset filtro
+      setFiltro('none');
 
       if (devices.length === 0) {
         devices = await listarCamaras();
@@ -183,7 +248,7 @@
     }
 
     function empezarGrabacion() {
-      const canvasStream = canvas.captureStream(30); // 30 fps
+      const canvasStream = canvas.captureStream(30);
       mediaRecorder = new MediaRecorder(canvasStream, { mimeType: 'video/webm' });
       partesVideo = [];
 
@@ -212,7 +277,6 @@
       grabLabel.textContent = "Iniciar grabación";
     }
 
-    // Inicializamos
     (async () => {
       devices = await listarCamaras();
 
@@ -223,7 +287,6 @@
         alert("No se encontraron cámaras disponibles.");
       }
     })();
-
   </script>
 </body>
 </html>
