@@ -2,10 +2,9 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>App Cámara Mobile Friendly</title>
+  <title>Postales</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <style>
-    /* Reset básico */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -37,8 +36,8 @@
     #canvas {
       display: block;
       max-width: 95vw;
-      width: auto;     /* Cambio aquí para que no se deforme */
-      height: auto;    /* Mantiene proporción original */
+      width: auto;
+      height: auto;
       border-radius: 20px;
       box-shadow: 0 8px 20px rgba(74, 144, 226, 0.3);
       margin-bottom: 20px;
@@ -71,9 +70,6 @@
       flex: 1 1 auto;
       max-width: 180px;
       user-select: none;
-      -webkit-user-select: none;
-      -webkit-touch-callout: none;
-      -webkit-tap-highlight-color: transparent;
     }
 
     button:hover {
@@ -91,7 +87,6 @@
       user-select: none;
     }
 
-    /* Ajustes extra para pantallas pequeñas */
     @media (max-width: 380px) {
       button {
         max-width: 100%;
@@ -102,23 +97,23 @@
   </style>
 </head>
 <body>
-  <h1>📸 Cámara con Filtros Mobile Friendly</h1>
+  <h1>📸 Postales</h1>
 
   <video id="video" autoplay playsinline style="display:none;"></video>
   <canvas id="canvas"></canvas>
 
   <div class="filtros">
-    <button onclick="setFiltro('none')">Normal</button>
-    <button onclick="setFiltro('sepia')">Sepia</button>
-    <button onclick="setFiltro('grayscale')">Blanco y negro</button>
-    <button onclick="setFiltro('cam2000')">Cámara 2000s</button>
+    <button onclick="setFiltro('none')" aria-label="Filtro normal">Normal</button>
+    <button onclick="setFiltro('sepia')" aria-label="Filtro sepia">Sepia</button>
+    <button onclick="setFiltro('grayscale')" aria-label="Filtro blanco y negro">Blanco y negro</button>
+    <button onclick="setFiltro('cam2000')" aria-label="Filtro cámara 2000">Cámara 2000s</button>
   </div>
 
   <div class="controles">
-    <button onclick="capturar()">📷 Capturar foto</button>
-    <button onclick="descargar()">💾 Descargar foto</button>
-    <button onclick="alternarCamara()">🔁 Cambiar cámara</button>
-    <button onclick="toggleGrabacion()">
+    <button onclick="capturar()" aria-label="Capturar foto">📷 Capturar foto</button>
+    <button onclick="descargar()" aria-label="Descargar foto">💾 Descargar foto</button>
+    <button onclick="alternarCamara()" aria-label="Cambiar cámara">🔁 Cambiar cámara</button>
+    <button onclick="toggleGrabacion()" aria-label="Iniciar/detener grabación">
       🎥 <span id="grab-label">Iniciar grabación</span>
     </button>
   </div>
@@ -135,7 +130,6 @@
     let partesVideo = [];
     let grabando = false;
     let dibujando = false;
-
     let devices = [];
     let currentDeviceIndex = 0;
 
@@ -157,7 +151,6 @@
         video.srcObject = stream;
 
         video.onloadedmetadata = () => {
-          // Ajustar tamaño del canvas a la resolución real del video
           canvas.width = video.videoWidth || 640;
           canvas.height = video.videoHeight || 480;
           if (!dibujando) {
@@ -168,12 +161,13 @@
 
         await video.play();
       } catch (err) {
-        alert("No se pudo acceder a la cámara: " + err);
+        alert("No se pudo acceder a la cámara: " + err.message);
       }
     }
 
     function setFiltro(nombre) {
       filtroActual = nombre;
+      dibujarEnCanvas(); // Redibuja inmediatamente con el nuevo filtro
     }
 
     function aplicarFiltro(ctx) {
@@ -201,9 +195,9 @@
         const data = imageData.data;
         for (let i = 0; i < data.length; i += 4) {
           const ruido = (Math.random() - 0.5) * 20;
-          data[i] += ruido;
-          data[i + 1] += ruido;
-          data[i + 2] += ruido;
+          data[i] = Math.min(255, Math.max(0, data[i] + ruido));
+          data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + ruido));
+          data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + ruido));
         }
         ctx.putImageData(imageData, 0, 0);
       }
@@ -214,7 +208,11 @@
     function capturar() {
       const img = canvas.toDataURL('image/png');
       const win = window.open();
-      win.document.write('<img src="' + img + '" style="width:100%;">');
+      if (win) {
+        win.document.write('<img src="' + img + '" style="width:100%;">');
+      } else {
+        alert("Tu navegador bloqueó la ventana emergente.");
+      }
     }
 
     function descargar() {
@@ -231,9 +229,7 @@
         devices = await listarCamaras();
       }
 
-      currentDeviceIndex++;
-      if (currentDeviceIndex >= devices.length) currentDeviceIndex = 0;
-
+      currentDeviceIndex = (currentDeviceIndex + 1) % devices.length;
       const deviceId = devices[currentDeviceIndex].deviceId;
       iniciarCamaraPorId(deviceId);
     }
@@ -247,7 +243,11 @@
     }
 
     function empezarGrabacion() {
-      // Capturamos el stream del canvas para grabar con filtro aplicado
+      if (!canvas.captureStream) {
+        alert("Tu navegador no soporta grabación desde canvas.");
+        return;
+      }
+
       const canvasStream = canvas.captureStream(30);
       mediaRecorder = new MediaRecorder(canvasStream, { mimeType: 'video/webm' });
       partesVideo = [];
@@ -280,13 +280,16 @@
     }
 
     (async () => {
-      devices = await listarCamaras();
-
-      if (devices.length > 0) {
-        currentDeviceIndex = 0;
-        iniciarCamaraPorId(devices[currentDeviceIndex].deviceId);
-      } else {
-        alert("No se encontraron cámaras disponibles.");
+      try {
+        devices = await listarCamaras();
+        if (devices.length > 0) {
+          currentDeviceIndex = 0;
+          iniciarCamaraPorId(devices[currentDeviceIndex].deviceId);
+        } else {
+          alert("No se encontraron cámaras disponibles.");
+        }
+      } catch (e) {
+        alert("Error al inicializar la cámara: " + e.message);
       }
     })();
   </script>
