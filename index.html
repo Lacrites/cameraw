@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Postales</title>
+  <title>Postales (Optimizado)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <style>
     * {
@@ -103,17 +103,17 @@
   <canvas id="canvas"></canvas>
 
   <div class="filtros">
-    <button onclick="setFiltro('none')" aria-label="Filtro normal">Normal</button>
-    <button onclick="setFiltro('sepia')" aria-label="Filtro sepia">Sepia</button>
-    <button onclick="setFiltro('grayscale')" aria-label="Filtro blanco y negro">Blanco y negro</button>
-    <button onclick="setFiltro('cam2000')" aria-label="Filtro cámara 2000">Cámara 2000s</button>
+    <button onclick="setFiltro('none')">Normal</button>
+    <button onclick="setFiltro('sepia')">Sepia</button>
+    <button onclick="setFiltro('grayscale')">Blanco y negro</button>
+    <button onclick="setFiltro('cam2000')">Cámara 2000s</button>
   </div>
 
   <div class="controles">
-    <button onclick="capturar()" aria-label="Capturar foto">📷 Capturar foto</button>
-    <button onclick="descargar()" aria-label="Descargar foto">💾 Descargar foto</button>
-    <button onclick="alternarCamara()" aria-label="Cambiar cámara">🔁 Cambiar cámara</button>
-    <button onclick="toggleGrabacion()" aria-label="Iniciar/detener grabación">
+    <button onclick="capturar()">📷 Capturar foto</button>
+    <button onclick="descargar()">💾 Descargar foto</button>
+    <button onclick="alternarCamara()">🔁 Cambiar cámara</button>
+    <button onclick="toggleGrabacion()">
       🎥 <span id="grab-label">Iniciar grabación</span>
     </button>
   </div>
@@ -129,9 +129,9 @@
     let mediaRecorder = null;
     let partesVideo = [];
     let grabando = false;
-    let dibujando = false;
     let devices = [];
     let currentDeviceIndex = 0;
+    let intervaloDibujo = null;
 
     async function listarCamaras() {
       const allDevices = await navigator.mediaDevices.enumerateDevices();
@@ -145,17 +145,21 @@
 
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { deviceId: { exact: deviceId } }
+          video: {
+            deviceId: { exact: deviceId },
+            width: { ideal: 640 },
+            height: { ideal: 480 }
+          }
         });
+
         streamActual = stream;
         video.srcObject = stream;
 
         video.onloadedmetadata = () => {
           canvas.width = video.videoWidth || 640;
           canvas.height = video.videoHeight || 480;
-          if (!dibujando) {
-            dibujando = true;
-            dibujarEnCanvas();
+          if (!intervaloDibujo) {
+            intervaloDibujo = setInterval(dibujarEnCanvas, 66); // ~15 FPS
           }
         };
 
@@ -167,7 +171,6 @@
 
     function setFiltro(nombre) {
       filtroActual = nombre;
-      dibujarEnCanvas(); // Redibuja inmediatamente con el nuevo filtro
     }
 
     function aplicarFiltro(ctx) {
@@ -193,16 +196,16 @@
       if (filtroActual === 'cam2000') {
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const data = imageData.data;
+
         for (let i = 0; i < data.length; i += 4) {
-          const ruido = (Math.random() - 0.5) * 20;
+          const ruido = (Math.random() - 0.5) * 10;
           data[i] = Math.min(255, Math.max(0, data[i] + ruido));
           data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + ruido));
           data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + ruido));
         }
+
         ctx.putImageData(imageData, 0, 0);
       }
-
-      requestAnimationFrame(dibujarEnCanvas);
     }
 
     function capturar() {
@@ -230,8 +233,7 @@
       }
 
       currentDeviceIndex = (currentDeviceIndex + 1) % devices.length;
-      const deviceId = devices[currentDeviceIndex].deviceId;
-      iniciarCamaraPorId(deviceId);
+      iniciarCamaraPorId(devices[currentDeviceIndex].deviceId);
     }
 
     function toggleGrabacion() {
@@ -248,7 +250,7 @@
         return;
       }
 
-      const canvasStream = canvas.captureStream(30);
+      const canvasStream = canvas.captureStream(15);
       mediaRecorder = new MediaRecorder(canvasStream, { mimeType: 'video/webm' });
       partesVideo = [];
 
@@ -283,8 +285,7 @@
       try {
         devices = await listarCamaras();
         if (devices.length > 0) {
-          currentDeviceIndex = 0;
-          iniciarCamaraPorId(devices[currentDeviceIndex].deviceId);
+          iniciarCamaraPorId(devices[0].deviceId);
         } else {
           alert("No se encontraron cámaras disponibles.");
         }
